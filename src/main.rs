@@ -96,6 +96,7 @@ fn check_for_safe_versions(
         let parsed_file = parse_file(&file_content)?;
 
         let mut found_safe_func = false;
+        let mut func_safety=true;
 
         // 遍历文件中的所有项，查找具有相同名称的安全版本函数
         for item in parsed_file.items {
@@ -103,6 +104,9 @@ fn check_for_safe_versions(
                 syn::Item::Fn(item_fn) => {
                     if item_fn.sig.ident.to_string() == safe_func_name {
                         found_safe_func = true;
+                        if item_fn.sig.unsafety.is_some() {
+                            func_safety=false;
+                        }
                         break;
                     }
                 }
@@ -112,6 +116,9 @@ fn check_for_safe_versions(
                         if let ImplItem::Fn(impl_fn) = impl_item {
                             if impl_fn.sig.ident.to_string() == safe_func_name {
                                 found_safe_func = true;
+                                if impl_fn.sig.unsafety.is_some() {
+                                    func_safety=false;
+                                }
                                 break;
                             }
                         }
@@ -123,7 +130,12 @@ fn check_for_safe_versions(
 
         // 根据查找结果更新结果集
         if found_safe_func {
-            results.insert((file_path.clone(), func_name.clone(), safe_func_name));
+            if func_safety{
+                results.insert((file_path.clone(), func_name.clone(), safe_func_name));
+            } else {
+                results.insert((file_path.clone(), func_name.clone(), format!("{safe_func_name}(unsafe)")));
+            }
+            
         } else {
             results.insert((file_path.clone(), func_name.clone(), "None".to_string()));
         }
